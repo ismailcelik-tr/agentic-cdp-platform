@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Proje özeti
 CDP/martech temalı, tek bir birleşik sistem (Insider mülakat hazırlığı + AI engineering
 capstone'u). Dört gevşek bağlı modül, ortak domain: müşteri / segment / etkinlik.
