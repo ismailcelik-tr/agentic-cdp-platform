@@ -1,115 +1,63 @@
-# 12 Haftalık Birleşik Çalışma Planı (v4 — Final)
-### Insider'a Hazırlık + AI Engineering — Tek Sistem Üzerinden
+# 12 Haftalık Birleşik Çalışma Planı (v5 — Go & Agentic AI)
+### Agentic Customer Data Platform (CDP) Stack
 
-> **Bu sürüm nasıl bu hale geldi:**
-> - **v1 → v2:** Laravel'in "derinleştirme" değil, sıfırdan öğrenme olduğu netleşti (CV'de PHP/Laravel hiç yok).
-> - **v2 → v3:** Docker/K8s/AWS/MCP için "zaten biliniyor" varsayımı **kalibrasyon testleriyle** çöktü — gerçek seviyeye göre yeniden zamanlandı.
-> - **v3 → v4:** İki ayrı track, **tek bir sistem**de birleştirildi (gevşek bağlı modüller + ortak domain + 2 entegrasyon noktası). Go'nun Insider'da PHP'ye **eşdeğer ağırlıkta bir backend dili** olduğu ilan verisiyle doğrulandı — Laravel/DDD'nin ilan dilindeki ("modüler monolit", "DDD", "PHPStan/Rector/Pint") birebir eşleşmesi de doğrulandı.
->
-> **Tempo:** ~12–15 saat/hafta. **%40 Insider + %60 AI çekirdeği.**
+Bu plan, modern backend pratikleri (Go, DDD, Clean Architecture) ile güncel AI trendlerini (RAG, AI Agents, MCP) bir araya getirerek production-grade ve CV-ready bir monorepo sistemi inşa etmeyi amaçlar.
 
 ---
 
-## Tek sistem: ne inşa ediyoruz
+## Tek Sistem: Ne İnşa Ediyoruz?
 
-CDP/martech temalı, **müşteri/segment/etkinlik** domain'i üzerine kurulu bir sistem:
+CDP (Customer Data Platform) / MarTech temalı, **müşteri, segment ve davranışsal event** verilerini işleyen akıllı bir mikroservis ekosistemi:
 
 | Parça | Rol | Teknoloji |
 |---|---|---|
-| **Laravel API** | DDD'li çekirdek backend — segment/müşteri yönetimi | PHP 8.x, Eloquent, Redis/Horizon |
-| **Go servisi** | Event ingestion — webhook'ları alır, Laravel'in kuyruğuna basar | Go, net/http |
-| **Python AI servisi** | RAG (statik bilgi) + Agent (canlı veri sorgusu) | Python, asyncio, pgvector |
-| **MCP server** | Laravel API'yi agent'a tool olarak açan köprü | Python/Node, MCP SDK |
+| **`go-core-api`** | DDD'li çekirdek backend — müşteri/segment yönetimi ve event ingestion | Go (net/http veya Gin), Gorm, PostgreSQL, Redis |
+| **`ai-agent-service`** | RAG (bilgi bankası) + ReAct Agent (Go API'sini dinamik sorgulama) | Python, FastAPI, pgvector, LangGraph / LangChain |
+| **`mcp-gateway`** | Go API'sini AI Agent'a güvenli "Tool" olarak sunan köprü | Python/Node, Model Context Protocol (MCP) SDK |
 
-**Gevşek bağlılık ilkesi:** her parça bağımsız yazılır, test edilir, tek başına demo edilebilir. Birleşme yalnızca iki noktada olur:
-- **Entegrasyon Noktası 1** (Faz 2 sonu): hepsi aynı `docker-compose` stack'inde yan yana çalışır.
-- **Entegrasyon Noktası 2** (Faz 3 sonu): MCP server gerçek bağlantıyı kurar, Go servisi gerçek event besler.
-
-Aradaki hiçbir hafta bir öncekinin bitmesini şart koşmaz.
+**Production ve DevOps Vizyonu:**
+- Her servis en başından itibaren Dockerize edilerek izole çalıştırılacak.
+- AWS (VPC, EKS/K8s, IAM Instance Profiles) üzerinde zero-downtime (rolling update) deployment altyapısı kurulacak.
 
 ---
 
-## FAZ 1 — Temel (Hafta 1–3)
+## FAZ 1 — Go Core Backend & Containerization (Hafta 1-3)
 
-**🟦 Insider — Laravel'e giriş (sıfırdan, ilan diliyle doğrulandı)**
-- **Hafta 1:** Routing, controller, Eloquent ORM, migration, Artisan. Basit bir kaynak (müşteri/segment) için CRUD REST API.
-- **Hafta 2:** PHP 8.x modern pratikler + tooling. Strict types, readonly class, enum. PHPStan (max level) + Rector + Pint, Hafta 1 API'sine uygula.
-- **Hafta 3:** DDD katmanlama. Entity / Repository / Manager / DTO ayrımıyla yeniden yapılandır — bu artık "ilan diliyle birebir örtüşen" gerçek bir backend pattern'i.
-
-**🟩 AI çekirdeği**
-- **Hafta 1:** Python async + type hints. *Not: Node.js event loop / Dart async-await zaten biliniyor, sözdizimi geçişi olacak — ama gerçek ilerleme henüz Claude Code'da başlamadı.*
-- **Hafta 2:** LLM API + streaming CLI chatbot. *Planlama sohbetinde taslak (`chatbot.py`, `sync_vs_async.py`, `requirements.txt`) hazırlandı — referans olarak kullanılabilir, ama resmi ilerleme sayılmıyor.*
-- **Hafta 3:** Tool calling — Pydantic şema, mock DB tool, retry. *(MCP kalibrasyonunda görülen `stop_reason`/`tool_result` karışıklığı tam burada netleşecek.)*
-
-> **✅ Çıktı:** DDD'li Laravel API (sistemin backend çekirdeği) + streaming & tool-calling yapan CLI chatbot.
+**🟦 Go Core Backend (DDD & Clean Architecture)**
+- **Hafta 1:** Go projesinin standart layout (`cmd`, `internal`, `pkg`) ile kurulması. DDD prensiplerine göre katmanlama (Domain, Application, Infrastructure, Interfaces). Temel Customer & Segment CRUD modelleri ve veritabanı (PostgreSQL) entegrasyonu.
+- **Hafta 2:** Event Ingestion Endpoint'leri. Yüksek eşzamanlılık (High Concurrency) için Go'nun native `goroutine` ve `channel` yapılarının kullanılması. Event validation ve buffering mekanizmaları.
+- **Hafta 3:** Servisin `Dockerfile` (multi-stage build) ve `docker-compose` ortamına taşınması. Unit testler, mock kütüphaneleri ile Go test kapsamının artırılması.
 
 ---
 
-## FAZ 2 — RAG & Vector DB + Insider Altyapı (Hafta 4–7)
+## FAZ 2 — RAG & Vector DB + AI Agent Service (Hafta 4-7)
 
-**🟩 AI çekirdeği**
-- **Hafta 4:** Embeddings + chunking (semantik sınırla).
-- **Hafta 5:** pgvector ile vector DB.
-- **Hafta 6:** Framework'süz baseline RAG pipeline.
-- **Hafta 7:** Hybrid search (BM25 + dense) + reranker.
-
-**🟦 Insider — AWS hedefli, Docker tam temelden**
-- **Hafta 4:** Redis + Laravel Horizon — job/queue akışı.
-- **Hafta 5:** **AWS — hedefli.** S3/Lambda/Elastic IP'yi tekrar etme (kalibrasyonda sağlam çıktı). Odak: **VPC** (public/private subnet, NAT Gateway) + **EC2 IAM instance profile** (kalibrasyonda net boşluk). Hands-on: private subnet'te bir EC2, instance profile ile S3'e erişsin.
-- **Hafta 6:** **Docker — tam temelden.** Image/layer, multi-stage build, networking, volume, restart-loop debug. Sıkıştırma yok (kalibrasyon: geniş boşluk).
-- **Hafta 7:** Docker devamı + **Entegrasyon Noktası 1**: RAG + Laravel + Postgres + Redis aynı `docker-compose` stack'inde.
-
-> **✅ Çıktı:** VPC + instance profile ile çalışan bir AWS deploy'u + Docker fundamentals sağlam, compose'da **gerçekten birleşmiş** RAG+Laravel stack'i.
+**🟩 AI Agent Service (Python & FastAPI)**
+- **Hafta 4:** Python FastAPI tabanlı asenkron yapının kurulması. Chunking ve Embedding (Hugging Face / OpenAI) mekanizmaları.
+- **Hafta 5:** Vector Database olarak PostgreSQL + `pgvector` kullanımı. Baseline RAG pipeline geliştirilmesi.
+- **Hafta 6:** Hybrid Search (Semantic + BM25) ve Reranking (Cross-Encoder) entegrasyonu. Doküman yükleme ve indeksleme akışı.
+- **Hafta 7:** AI Agent Core. LangGraph/LangChain ile ReAct loop tasarlanması ve bellek yönetimi (Chat History). Python servisinin Dockerize edilmesi.
 
 ---
 
-## FAZ 3 — Agent, MCP & Üretim (Hafta 8–11)
+## FAZ 3 — MCP Gateway & Entegrasyon (Hafta 8-9)
 
-**🟩 AI çekirdeği**
-- **Hafta 8:** Agent mimarisi — ReAct loop.
-- **Hafta 9:** **MCP — önce mekanizma, sonra inşa.** Önce: client-host-server mimarisi, tools/resources/prompts üçlüsü (kalibrasyonda bilinmiyordu), gerçek tool_use akışı (MCP değil, çağıran uygulama tool'u çalıştırır). Sonra: gerçek bir MCP server yaz — bu, **Entegrasyon Noktası 2**'nin başlangıcı (Laravel API'yi tool olarak açar).
-- **Hafta 10:** RAGAS evaluation (faithfulness / answer relevance / context relevance).
-- **Hafta 11:** Observability (LangSmith/Phoenix) + kısa not: **prompt caching** = context/prefix cache (tekrar eden system prompt/tool tanımını yeniden işletmeme), semantic cache (benzer sorulara hazır cevap) **değil** — kalibrasyonda bu ikisi karışmıştı.
-
-**🟦 Insider — K8s tam temelden, Go eşdeğer ciddiyette**
-- **Hafta 8:** Kubernetes temelleri — Pod/Service/Deployment/ConfigMap/Secret, basit bir manifest + `kubectl apply`.
-- **Hafta 9:** Faz 2'deki compose stack'ini K8s'e taşı. Rolling update + `kubectl rollout undo` (kalibrasyonda hiç bilinmiyordu).
-- **Hafta 10:** Go'ya giriş — sözdizimi, goroutine'ler. *(Not: ilan verisi Go'yu "ilgi göstergesi" değil, PHP'ye **eşdeğer** bir backend dili olarak gösteriyor — buna göre ele al.)*
-- **Hafta 11:** Go ile gerçek bir HTTP servisi — webhook event'lerini Laravel'in kuyruğuna basan ingestion servisi. **Entegrasyon Noktası 2 tamamlanır.** Hata yönetimi ve testi Laravel API ile aynı kalitede olsun — "giriş seviyesi ekstra" değil, gerçek bir parça.
-
-> **✅ Çıktı:** Tools/resources/prompts'u doğru kullanan, kendi MCP server'ına bağlı, RAGAS'la ölçülmüş bir agent. K8s'te deploy edilmiş, rolling update'i test edilmiş bir stack. Laravel'e gerçek event basan bir Go servisi.
+**🟪 Model Context Protocol (MCP) Bridge**
+- **Hafta 8:** MCP standartlarının uygulanması. Go API'sinin endpoint'lerini (`go-core-api`) AI Agent'a `tools` olarak sunacak bir MCP sunucusunun yazılması.
+- **Hafta 9:** **Entegrasyon Noktası:** Go API + Postgres + Python AI Agent + MCP sunucusunun tek bir `docker-compose` dosyası altında ayağa kaldırılması. Agent'ın Go API üzerinden canlı veri çekerek kullanıcı sorularını yanıtlamasının doğrulanması.
 
 ---
 
-## FAZ 4 — Toparlama & Vitrin (Hafta 12)
+## FAZ 4 — AWS DevOps & Kubernetes (Hafta 10-11)
 
-- Sistemin parçalarını (Laravel API, Python AI servisi, MCP server, Go servisi) GitHub'da README'lerle topla — **tek bir mimari anlatımı**, dört dağınık demo değil.
-- Kafka + ClickHouse'u **kavramsal** çalış — kod yazma, ama "event streaming + kolon-tabanlı analitik DB, CDP'de yeri ne" diyebil.
-- LinkedIn/CV güncelle: "Laravel" satırının artık gerçek bir karşılığı var.
-- Insider ilanlarını tara (özellikle "Backend Software Developer (PHP/Laravel)" ve Go/Node.js geçen ilanlar), en yakın eşleşen role başvur.
-
----
-
-## Hızlı Referans (final)
-
-| Sıra | Konu | Durum | Kanıt |
-|---|---|---|---|
-| 1 | Laravel temelleri → DDD | Sıfırdan | İlan diliyle birebir doğrulandı |
-| 2 | Go | Sıfırdan, **eşdeğer ciddiyet** | İlanlarda "PHP ve Go/Node.js" — eşdeğer dil |
-| 3 | Python async + LLM API | Henüz başlanmadı | Node.js/Dart transferi var, sözdizimi yeni |
-| 4 | RAG + Vector DB | Planlanan | — |
-| 5 | Docker fundamentals | Sıfırdan | Kalibrasyon testiyle doğrulandı |
-| 6 | Kubernetes fundamentals | Sıfırdan, 2 hafta | Kalibrasyon testiyle doğrulandı |
-| 7 | AWS — VPC + instance profile | Hedefli boşluk | Kalibrasyon testiyle doğrulandı, gerisi sağlam |
-| 8 | Tool use API mekaniği | Hafta 3'te netleşir | Kalibrasyon testiyle doğrulandı |
-| 9 | MCP primitives + server | Terim biliniyor, mekanizma yeni | Kalibrasyon testiyle doğrulandı |
-| 10 | Prompt caching vs semantic cache | Kavram düzeltmesi | Kalibrasyon testiyle doğrulandı |
+**🛡️ Cloud & Infrastructure**
+- **Hafta 10:** AWS temelleri. VPC tasarımı (Public/Private subnets, NAT Gateway yerine VPC Endpoints ile maliyet kontrolü). EC2 IAM instance profiles. Kubernetes (EKS veya hafif K8s) temelleri (Pod, Deployment, Service, ConfigMap, Secret).
+- **Hafta 11:** K8s Manifest'lerinin yazılması ve rolling update (zero-downtime) stratejisinin simülasyonu. Başarısız deploy durumunda `rollout undo` ile otomatik kurtarma senaryoları.
 
 ---
 
-### Not
-Hiçbir konu "zaten biliyor" diye atlanmadı — her varsayım ya CV/ilan kanıtıyla ya da
-kalibrasyon testiyle doğrulandı. Yeni bir konuya geçerken aynı yöntem (artan
-zorlukta 4-5 soru) kullanılabilir. **İlerleme: plan henüz uygulanmaya başlanmadı —
-bu sohbet tamamen stratejik planlama oturumuydu.** Hafta 1'den itibaren resmi
-ilerleme Claude Code'da, gerçek bir proje dizininde başlayacak.
+## FAZ 5 — Toparlama & Vitrin (Hafta 12)
+
+- Monoreponun dökümantasyonunun tamamlanması. Servis bazlı `README.md` dosyalarının oluşturulması.
+- Mimariyi gösteren Mermaid diyagramlarının güncellenmesi.
+- Portfolyoyu LinkedIn ve CV'ye ekleme aşaması.
